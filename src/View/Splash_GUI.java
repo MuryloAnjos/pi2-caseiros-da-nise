@@ -3,14 +3,15 @@ package View;
 import static java.lang.Thread.sleep;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.JFrame;
 
 public class Splash_GUI extends javax.swing.JFrame {
 
+        
     public Splash_GUI() {
         initComponents();
-
+        
         new Thread() {
-
             public void run() {
 
                 for (int i = 0; i < 101; i++) {
@@ -56,35 +57,34 @@ public class Splash_GUI extends javax.swing.JFrame {
 
         jPanel1 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
-        jLabel2 = new javax.swing.JLabel();
-        progress = new javax.swing.JProgressBar();
         mess_txt = new javax.swing.JLabel();
+        progress = new javax.swing.JProgressBar();
+        jLabel2 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        getContentPane().setLayout(null);
+        getContentPane().setLayout(new javax.swing.BoxLayout(getContentPane(), javax.swing.BoxLayout.LINE_AXIS));
 
         jPanel1.setBackground(new java.awt.Color(235, 222, 203));
         jPanel1.setLayout(null);
 
         jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/Image/logo.jpg"))); // NOI18N
         jPanel1.add(jLabel1);
-        jLabel1.setBounds(550, 220, 200, 190);
+        jLabel1.setBounds(800, 300, 200, 190);
+        jPanel1.add(mess_txt);
+        mess_txt.setBounds(770, 560, 380, 70);
+
+        progress.setForeground(new java.awt.Color(102, 255, 102));
+        progress.setStringPainted(true);
+        jPanel1.add(progress);
+        progress.setBounds(770, 520, 250, 30);
 
         jLabel2.setFont(new java.awt.Font("Segoe UI Semibold", 1, 18)); // NOI18N
         jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel2.setText("BEM VINDO");
         jPanel1.add(jLabel2);
-        jLabel2.setBounds(580, 160, 120, 25);
-
-        progress.setForeground(new java.awt.Color(102, 255, 102));
-        progress.setStringPainted(true);
-        jPanel1.add(progress);
-        progress.setBounds(520, 440, 250, 30);
-        jPanel1.add(mess_txt);
-        mess_txt.setBounds(520, 480, 380, 70);
+        jLabel2.setBounds(830, 250, 120, 25);
 
         getContentPane().add(jPanel1);
-        jPanel1.setBounds(0, 0, 1280, 690);
 
         setSize(new java.awt.Dimension(1299, 660));
         setLocationRelativeTo(null);

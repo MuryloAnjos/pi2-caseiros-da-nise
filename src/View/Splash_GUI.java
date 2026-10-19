@@ -11,6 +11,20 @@ public class Splash_GUI extends javax.swing.JFrame {
     public Splash_GUI() {
         initComponents();
         
+        progress.setUI(new javax.swing.plaf.basic.BasicProgressBarUI() {
+            @Override
+            protected java.awt.Color getSelectionForeground() {
+                return java.awt.Color.WHITE;                       // texto em cima da parte marrom
+            }
+            @Override
+            protected java.awt.Color getSelectionBackground() {
+                return new java.awt.Color(138, 75, 42);            // texto em cima da parte vazia
+            }
+        });
+        progress.setForeground(new java.awt.Color(138, 75, 42));  // cor da barra
+        progress.setBackground(new java.awt.Color(240, 225, 195)); // fundo da barra
+        progress.setBorderPainted(false);
+        
         new Thread() {
             public void run() {
 
@@ -36,11 +50,12 @@ public class Splash_GUI extends javax.swing.JFrame {
 
                             sleep(3000);
 
-                            new Login_GUI().setVisible(true);
+                            new Inicio_GUI().setVisible(true);
+                            dispose();
                         }
 
                     } catch (InterruptedException ex) {
-                        Logger.getLogger(Login_GUI.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(Splash_GUI.class.getName()).log(Level.SEVERE, null, ex);
 
                     }
 
@@ -67,22 +82,23 @@ public class Splash_GUI extends javax.swing.JFrame {
         jPanel1.setBackground(new java.awt.Color(235, 222, 203));
         jPanel1.setLayout(null);
 
-        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/Image/logo.jpg"))); // NOI18N
+        jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/Images/logo.jpg"))); // NOI18N
         jPanel1.add(jLabel1);
-        jLabel1.setBounds(800, 300, 200, 190);
+        jLabel1.setBounds(560, 190, 200, 190);
         jPanel1.add(mess_txt);
-        mess_txt.setBounds(770, 560, 380, 70);
+        mess_txt.setBounds(350, 510, 380, 70);
 
         progress.setForeground(new java.awt.Color(102, 255, 102));
         progress.setStringPainted(true);
         jPanel1.add(progress);
-        progress.setBounds(770, 520, 250, 30);
+        progress.setBounds(540, 410, 250, 30);
 
         jLabel2.setFont(new java.awt.Font("Segoe UI Semibold", 1, 18)); // NOI18N
+        jLabel2.setForeground(new java.awt.Color(138, 75, 42));
         jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel2.setText("BEM VINDO");
         jPanel1.add(jLabel2);
-        jLabel2.setBounds(830, 250, 120, 25);
+        jLabel2.setBounds(600, 150, 120, 26);
 
         getContentPane().add(jPanel1);
 

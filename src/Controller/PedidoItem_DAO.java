@@ -108,6 +108,32 @@ public class PedidoItem_DAO {
         return total;
     }
 
+    public void update(PedidoItem pi) {
+
+        if (pi.getQuantidade() <= 0) {
+            JOptionPane.showMessageDialog(null, "A quantidade deve ser maior que zero.");
+            return;
+        }
+
+        Connection con = ConnectionFactory.getConnection();
+        PreparedStatement stmt = null;
+
+        try {
+            stmt = con.prepareStatement("UPDATE pedido_item SET quantidade = ? WHERE id = ?");
+            stmt.setDouble(1, pi.getQuantidade());
+            stmt.setInt(2, pi.getId());
+
+            stmt.executeUpdate();
+            JOptionPane.showMessageDialog(null, "Item Atualizado");
+        } catch (SQLException ex) {
+            Logger.getLogger(PedidoItem_DAO.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(null, "Erro ao Atualizar" + ex);
+        } finally {
+            ConnectionFactory.closeConnection(con, stmt);
+        }
+
+    }
+
     public void delete(PedidoItem pi) {
 
         Connection con = ConnectionFactory.getConnection();

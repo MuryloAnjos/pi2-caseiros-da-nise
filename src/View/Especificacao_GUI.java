@@ -5,22 +5,17 @@
  */
 package View;
 
-import Controller.Cliente_DAO;
-import Controller.Pedido_DAO;
+import Controller.Especificacao_DAO;
+import Controller.Insumo_DAO;
 import Controller.Produto_DAO;
-import Model.Cliente;
-import Model.Pedido;
+import Model.Especificacao;
+import Model.Insumo;
 import Model.Produto;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Desktop;
 import java.awt.Graphics;
-import java.io.File;
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
@@ -29,16 +24,19 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.MenuElement;
-import javax.swing.RowFilter;
 import javax.swing.plaf.basic.BasicMenuBarUI;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableRowSorter;
 
 /**
  *
  * @author Murylo
  */
 public class Especificacao_GUI extends javax.swing.JFrame {
+
+    private List<Produto> produtos = new ArrayList<>();
+    private List<Insumo> insumos = new ArrayList<>();
+    private List<Especificacao> receita = new ArrayList<>();
+    private boolean carregando = false;
 
     private void customizeMenuBar(JMenuBar menuBar) {
 
@@ -89,39 +87,136 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         initComponents();
         customizeMenuBar(barrinha);
 
-        readJTable();
+        carregarCombos();
+        produtoSelecionado();
+        insumoSelecionado();
+    }
 
+    private void carregarCombos() {
+        carregando = true;
+
+        produto_cmb.removeAllItems();
+        produtos = new Produto_DAO().read();
+        for (Produto p : produtos) {
+            produto_cmb.addItem(p.getNome());
+        }
+
+        insumo_cmb.removeAllItems();
+        insumos = new Insumo_DAO().read();
+        for (Insumo i : insumos) {
+            insumo_cmb.addItem(i.getNome());
+        }
+
+        carregando = false;
+    }
+
+    private Produto produtoAtual() {
+        int i = produto_cmb.getSelectedIndex();
+        if (i == -1) {
+            return null;
+        }
+        return produtos.get(i);
+    }
+
+    private Insumo insumoAtual() {
+        int i = insumo_cmb.getSelectedIndex();
+        if (i == -1) {
+            return null;
+        }
+        return insumos.get(i);
+    }
+
+    private Insumo buscarInsumo(int id) {
+        for (Insumo i : insumos) {
+            if (i.getId() == id) {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    private void produtoSelecionado() {
+        readJTable();
+        atualizarPreco();
+    }
+
+    private void insumoSelecionado() {
+        Insumo i = insumoAtual();
+        unidade_lbl.setText(i == null ? "" : i.getUnidade());
     }
 
     public void readJTable() {
         DefaultTableModel modelo = (DefaultTableModel) pedidos_table.getModel();
         modelo.setNumRows(0);
 
-        for (Produto p : new Produto_DAO().read()) {
+        Produto p = produtoAtual();
+        if (p == null) {
+            receita.clear();
+            return;
+        }
 
+        receita = new Especificacao_DAO().read(p.getId());
+
+        for (Especificacao e : receita) {
+            Insumo i = buscarInsumo(e.getInsumoId());
+            if (i == null) {
+                continue;
+            }
             modelo.addRow(new Object[]{
-                p.getId(),
-                p.getNome(),
-                p.getCategoria(),
-                p.getTempoPreparoMin(),
-                String.format("%.0f%%", p.getMargem()),
-                String.format("%.2f", p.getPrecoVenda())
+                e.getId(),
+                i.getNome(),
+                String.format("%.2f", e.getQuantidade()),
+                i.getUnidade(),
+                String.format("R$ %.4f", i.getPreco()),
+                String.format("R$ %.2f", e.getQuantidade() * i.getPreco())
             });
         }
     }
 
-    private void limpar() {
-        id_txt.setText("");
-        nome_txt.setText("");
-        produto_cmb.setSelectedIndex(0);
-        tempo_txt.setText("");
-        margem_txt.setText("");
-        preco_txt.setText("");
-        pedidos_table.clearSelection();
+    private void atualizarPreco() {
+        Produto p = produtoAtual();
+
+        if (p == null) {
+            custo_lbl.setText("R$ 0,00");
+            margem_lbl.setText("0%");
+            sugerido_lbl.setText("R$ 0,00");
+            praticado_lbl.setText("R$ 0,00");
+            aviso_lbl.setText("Cadastre um produto primeiro.");
+            aviso_lbl.setForeground(new Color(248, 236, 220));
+            return;
+        }
+
+        Especificacao_DAO dao = new Especificacao_DAO();
+        double custo = dao.calcularCusto(p.getId());
+
+        custo_lbl.setText(String.format("R$ %.2f", custo));
+        margem_lbl.setText(String.format("%.0f%%", p.getMargem()));
+        praticado_lbl.setText(String.format("R$ %.2f", p.getPrecoVenda()));
+
+        if (p.getMargem() >= 100) {
+            sugerido_lbl.setText("-");
+            aviso_lbl.setText("A margem precisa ser menor que 100%.");
+            aviso_lbl.setForeground(new Color(255, 140, 120));
+            return;
+        }
+
+        double sugerido = dao.calcularPrecoSugerido(p.getId(), p.getMargem());
+        sugerido_lbl.setText(String.format("R$ %.2f", sugerido));
+
+        if (receita.isEmpty()) {
+            aviso_lbl.setText("Receita sem ingredientes.");
+            aviso_lbl.setForeground(new Color(248, 236, 220));
+        } else if (p.getPrecoVenda() < sugerido) {
+            aviso_lbl.setText("Preço abaixo do sugerido!");
+            aviso_lbl.setForeground(new Color(255, 140, 120));
+        } else {
+            aviso_lbl.setText("Preço cobre o custo e a margem.");
+            aviso_lbl.setForeground(new Color(150, 220, 140));
+        }
     }
-    
-    private double numero(String texto){
-        return Double.parseDouble(texto.trim().replace("%", "").replace(",", "."));
+
+    private double numero(String texto) {
+        return Double.parseDouble(texto.trim().replace(",", "."));
     }
 
     /**
@@ -147,7 +242,7 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jPanel3 = new javax.swing.JPanel();
         jLabel10 = new javax.swing.JLabel();
         insumo_cmb = new javax.swing.JComboBox<>();
-        margem_txt = new javax.swing.JTextField();
+        qtd_txt = new javax.swing.JTextField();
         add_BTN = new javax.swing.JButton();
         excluir_BTN = new javax.swing.JButton();
         jLabel6 = new javax.swing.JLabel();
@@ -157,6 +252,10 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel8 = new javax.swing.JLabel();
         jLabel9 = new javax.swing.JLabel();
         jLabel11 = new javax.swing.JLabel();
+        custo_lbl = new javax.swing.JLabel();
+        margem_lbl = new javax.swing.JLabel();
+        sugerido_lbl = new javax.swing.JLabel();
+        praticado_lbl = new javax.swing.JLabel();
         aviso_lbl = new javax.swing.JLabel();
         barrinha = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
@@ -197,34 +296,21 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel3.setText("Especificação");
         panelImage1.add(jLabel3);
-        jLabel3.setBounds(30, 10, 220, 40);
+        jLabel3.setBounds(30, 10, 300, 40);
 
         pedidos_table.setAutoCreateRowSorter(true);
         pedidos_table.setBackground(new java.awt.Color(248, 236, 220));
         pedidos_table.setForeground(new java.awt.Color(43, 26, 17));
         pedidos_table.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null},
-                {null, null, null, null, null, null}
+
             },
             new String [] {
-                "Id", "Nome", "Categoria", "Preparo", "Margem", "Preço"
+                "Id", "Insumo", "Quantidade", "Unidade", "Preço Unit.", "Custo"
             }
         ) {
             Class[] types = new Class [] {
-                java.lang.Integer.class, java.lang.String.class, java.lang.String.class, java.lang.Integer.class, java.lang.Object.class, java.lang.Object.class
+                java.lang.Integer.class, java.lang.String.class, java.lang.Object.class, java.lang.String.class, java.lang.Object.class, java.lang.Object.class
             };
             boolean[] canEdit = new boolean [] {
                 false, false, false, false, false, false
@@ -259,7 +345,11 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel4.setText("Produto");
         jPanel2.add(jLabel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 30, 70, 30));
 
-        produto_cmb.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "BOLO", "PAO", "DOCE", "SALGADO" }));
+        produto_cmb.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                produto_cmbActionPerformed(evt);
+            }
+        });
         jPanel2.add(produto_cmb, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 300, 30));
 
         panelImage1.add(jPanel2);
@@ -273,15 +363,14 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel10.setText("Insumo");
         jPanel3.add(jLabel10, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 30, 70, 30));
 
-        insumo_cmb.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "BOLO", "PAO", "DOCE", "SALGADO" }));
-        jPanel3.add(insumo_cmb, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 260, 30));
-
-        margem_txt.addActionListener(new java.awt.event.ActionListener() {
+        insumo_cmb.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                margem_txtActionPerformed(evt);
+                insumo_cmbActionPerformed(evt);
             }
         });
-        jPanel3.add(margem_txt, new org.netbeans.lib.awtextra.AbsoluteConstraints(300, 60, 90, 30));
+        jPanel3.add(insumo_cmb, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 260, 30));
+
+        jPanel3.add(qtd_txt, new org.netbeans.lib.awtextra.AbsoluteConstraints(300, 60, 90, 30));
 
         add_BTN.setBackground(new java.awt.Color(37, 36, 36));
         add_BTN.setIcon(new javax.swing.ImageIcon(getClass().getResource("/Images/adicionar (2).png"))); // NOI18N
@@ -304,7 +393,8 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel6.setForeground(new java.awt.Color(255, 255, 255));
         jLabel6.setText("Quantidade");
         jPanel3.add(jLabel6, new org.netbeans.lib.awtextra.AbsoluteConstraints(300, 30, 110, 30));
-        jPanel3.add(unidade_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(400, 60, 10, 30));
+        unidade_lbl.setForeground(new java.awt.Color(255, 255, 255));
+        jPanel3.add(unidade_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(395, 60, 30, 30));
 
         panelImage1.add(jPanel3);
         jPanel3.setBounds(390, 60, 570, 110);
@@ -329,13 +419,38 @@ public class Especificacao_GUI extends javax.swing.JFrame {
         jLabel11.setText("Preço Sugerido");
         jPanel4.add(jLabel11, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 150, 120, 30));
 
+        custo_lbl.setFont(new java.awt.Font("Dialog", 1, 15)); // NOI18N
+        custo_lbl.setForeground(new java.awt.Color(248, 236, 220));
+        custo_lbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        custo_lbl.setText("R$ 0,00");
+        jPanel4.add(custo_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(170, 50, 130, 30));
+
+        margem_lbl.setFont(new java.awt.Font("Dialog", 1, 15)); // NOI18N
+        margem_lbl.setForeground(new java.awt.Color(248, 236, 220));
+        margem_lbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        margem_lbl.setText("0%");
+        jPanel4.add(margem_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(170, 100, 130, 30));
+
+        sugerido_lbl.setFont(new java.awt.Font("Dialog", 1, 15)); // NOI18N
+        sugerido_lbl.setForeground(new java.awt.Color(248, 236, 220));
+        sugerido_lbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        sugerido_lbl.setText("R$ 0,00");
+        jPanel4.add(sugerido_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(170, 150, 130, 30));
+
+        praticado_lbl.setFont(new java.awt.Font("Dialog", 1, 15)); // NOI18N
+        praticado_lbl.setForeground(new java.awt.Color(248, 236, 220));
+        praticado_lbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        praticado_lbl.setText("R$ 0,00");
+        jPanel4.add(praticado_lbl, new org.netbeans.lib.awtextra.AbsoluteConstraints(170, 200, 130, 30));
+
         panelImage1.add(jPanel4);
         jPanel4.setBounds(620, 180, 320, 270);
 
+        aviso_lbl.setFont(new java.awt.Font("Dialog", 1, 14)); // NOI18N
+        aviso_lbl.setForeground(new java.awt.Color(248, 236, 220));
         aviso_lbl.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        aviso_lbl.setText("jLabel2");
         panelImage1.add(aviso_lbl);
-        aviso_lbl.setBounds(730, 470, 140, 19);
+        aviso_lbl.setBounds(620, 460, 320, 30);
 
         jPanel1.add(panelImage1);
         panelImage1.setBounds(0, 0, 980, 580);
@@ -482,7 +597,7 @@ public class Especificacao_GUI extends javax.swing.JFrame {
 
     private void jMenuItem2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem2ActionPerformed
         // TODO add your handling code here:
-        new Especificacao_GUI().setVisible(true);
+        new Inicio_GUI().setVisible(true);
         dispose();
     }//GEN-LAST:event_jMenuItem2ActionPerformed
 
@@ -512,65 +627,106 @@ public class Especificacao_GUI extends javax.swing.JFrame {
 
     private void jMenuItem9ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem9ActionPerformed
         // TODO add your handling code here:
-        new Especificacao_GUI().setVisible(true);
+        new Produtos_GUI().setVisible(true);
         dispose();
     }//GEN-LAST:event_jMenuItem9ActionPerformed
 
     private void pedidos_tableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_pedidos_tableMouseClicked
-        //        // TODO add your handling code here:
+        // TODO add your handling code here:
         int linhaTela = pedidos_table.getSelectedRow();
         if (linhaTela != -1) {
             int linha = pedidos_table.convertRowIndexToModel(linhaTela);
             DefaultTableModel modelo = (DefaultTableModel) pedidos_table.getModel();
-            id_txt.setText(modelo.getValueAt(linha, 0).toString());
-            nome_txt.setText(modelo.getValueAt(linha, 1).toString());
-            produto_cmb.setSelectedItem(modelo.getValueAt(linha, 2).toString());
-            tempo_txt.setText(modelo.getValueAt(linha, 3).toString());
-            margem_txt.setText(modelo.getValueAt(linha, 4).toString().replace("%", ""));
-            preco_txt.setText(modelo.getValueAt(linha, 5).toString());
+            insumo_cmb.setSelectedItem(modelo.getValueAt(linha, 1).toString());
+            qtd_txt.setText(modelo.getValueAt(linha, 2).toString());
         }
-        //        
     }//GEN-LAST:event_pedidos_tableMouseClicked
 
     private void add_BTNActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_add_BTNActionPerformed
         // TODO add your handling code here:
-        if (tempo_txt.getText().trim().isEmpty() || margem_txt.getText().trim().isEmpty()
-                || preco_txt.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Preencha preparo, margem e preço.");
+        Produto p = produtoAtual();
+        Insumo i = insumoAtual();
+
+        if (p == null || i == null) {
+            JOptionPane.showMessageDialog(this, "Selecione o produto e o insumo.");
             return;
         }
-        Produto p = new Produto(
-                nome_txt.getText().trim(),
-                produto_cmb.getSelectedItem().toString(),
-                Integer.parseInt(tempo_txt.getText().trim()),
-                numero(margem_txt.getText()),
-                numero(preco_txt.getText()));
-        new Produto_DAO().create(p);
-        readJTable();
-        limpar();
+        if (qtd_txt.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Informe a quantidade.");
+            return;
+        }
+
+        double qtd;
+        try {
+            qtd = numero(qtd_txt.getText());
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Quantidade inválida.");
+            return;
+        }
+
+        Especificacao existente = null;
+        for (Especificacao e : receita) {
+            if (e.getInsumoId() == i.getId()) {
+                existente = e;
+            }
+        }
+
+        if (existente != null) {
+            int op = JOptionPane.showConfirmDialog(this,
+                    i.getNome() + " já está na receita. Atualizar a quantidade para " + qtd + " " + i.getUnidade() + "?",
+                    "Atualizar", JOptionPane.YES_NO_OPTION);
+            if (op != JOptionPane.YES_OPTION) {
+                return;
+            }
+            if (qtd <= 0) {
+                JOptionPane.showMessageDialog(this, "A quantidade deve ser maior que zero.");
+                return;
+            }
+            existente.setQuantidade(qtd);
+            new Especificacao_DAO().update(existente);
+        } else {
+            new Especificacao_DAO().create(new Especificacao(p.getId(), i.getId(), qtd));
+        }
+
+        qtd_txt.setText("");
+        produtoSelecionado();
     }//GEN-LAST:event_add_BTNActionPerformed
 
     private void excluir_BTNActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_excluir_BTNActionPerformed
         // TODO add your handling code here:
-        if (id_txt.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Selecione um produto na tabela ou busque pelo Id.");
+        int linhaTela = pedidos_table.getSelectedRow();
+        if (linhaTela == -1) {
+            JOptionPane.showMessageDialog(this, "Selecione um ingrediente na tabela.");
             return;
         }
+        int linha = pedidos_table.convertRowIndexToModel(linhaTela);
+        DefaultTableModel modelo = (DefaultTableModel) pedidos_table.getModel();
+
         int op = JOptionPane.showConfirmDialog(this,
-                "Excluir o produto " + nome_txt.getText() + "?", "Excluir",
+                "Remover " + modelo.getValueAt(linha, 1) + " da receita?", "Excluir",
                 JOptionPane.YES_NO_OPTION);
         if (op == JOptionPane.YES_OPTION) {
-            Produto p = new Produto();
-            p.setId(Integer.parseInt(id_txt.getText().trim()));
-            new Produto_DAO().delete(p);
-            readJTable();
-            limpar();
+            Especificacao e = new Especificacao();
+            e.setId(Integer.parseInt(modelo.getValueAt(linha, 0).toString()));
+            new Especificacao_DAO().delete(e);
+            qtd_txt.setText("");
+            produtoSelecionado();
         }
     }//GEN-LAST:event_excluir_BTNActionPerformed
 
-    private void margem_txtActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_margem_txtActionPerformed
+    private void produto_cmbActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_produto_cmbActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_margem_txtActionPerformed
+        if (!carregando) {
+            produtoSelecionado();
+        }
+    }//GEN-LAST:event_produto_cmbActionPerformed
+
+    private void insumo_cmbActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_insumo_cmbActionPerformed
+        // TODO add your handling code here:
+        if (!carregando) {
+            insumoSelecionado();
+        }
+    }//GEN-LAST:event_insumo_cmbActionPerformed
 
     /**
      * @param args the command line arguments
@@ -674,6 +830,7 @@ public class Especificacao_GUI extends javax.swing.JFrame {
     private javax.swing.JButton add_BTN;
     private javax.swing.JLabel aviso_lbl;
     public static javax.swing.JMenuBar barrinha;
+    private javax.swing.JLabel custo_lbl;
     private javax.swing.JButton excluir_BTN;
     private javax.swing.JComboBox<String> insumo_cmb;
     private javax.swing.JLabel jLabel1;
@@ -704,10 +861,13 @@ public class Especificacao_GUI extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel3;
     private javax.swing.JPanel jPanel4;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTextField margem_txt;
+    private javax.swing.JLabel margem_lbl;
     private org.edisoncor.gui.panel.PanelImage panelImage1;
     private javax.swing.JTable pedidos_table;
+    private javax.swing.JLabel praticado_lbl;
     private javax.swing.JComboBox<String> produto_cmb;
+    private javax.swing.JTextField qtd_txt;
+    private javax.swing.JLabel sugerido_lbl;
     private javax.swing.JLabel unidade_lbl;
     // End of variables declaration//GEN-END:variables
 }

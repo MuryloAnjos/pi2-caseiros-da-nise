@@ -5,6 +5,7 @@
  */
 package View;
 
+import Connection.ConnectionFactory;
 import Controller.Cliente_DAO;
 import Controller.Pedido_DAO;
 import Model.Pedido;
@@ -14,6 +15,7 @@ import java.awt.Desktop;
 import java.awt.Graphics;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
@@ -154,6 +156,7 @@ private void changeComponentColors(Component comp) {
         barrinha = new javax.swing.JMenuBar();
         jMenu1 = new javax.swing.JMenu();
         jMenuItem2 = new javax.swing.JMenuItem();
+        jMenuItem10 = new javax.swing.JMenuItem();
         jMenu2 = new javax.swing.JMenu();
         jMenuItem4 = new javax.swing.JMenuItem();
         jMenuItem8 = new javax.swing.JMenuItem();
@@ -346,6 +349,14 @@ private void changeComponentColors(Component comp) {
             }
         });
         jMenu1.add(jMenuItem2);
+
+        jMenuItem10.setText("Testar Conexão");
+        jMenuItem10.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jMenuItem10ActionPerformed(evt);
+            }
+        });
+        jMenu1.add(jMenuItem10);
 
         barrinha.add(jMenu1);
 
@@ -560,6 +571,28 @@ private void changeComponentColors(Component comp) {
         dispose();
     }//GEN-LAST:event_jMenuItem9ActionPerformed
 
+    private void jMenuItem10ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jMenuItem10ActionPerformed
+        // TODO add your handling code here:
+        try {
+            Connection con = ConnectionFactory.getConnection();
+            String banco = con.getCatalog();
+            String servidor = con.getMetaData().getURL();
+            String versao = con.getMetaData().getDatabaseProductVersion();
+            ConnectionFactory.closeConnection(con);
+
+            JOptionPane.showMessageDialog(this,
+                    "Conexão OK!\n\nBanco: " + banco
+                    + "\nServidor: " + servidor
+                    + "\nVersão do MySQL: " + versao,
+                    "Testar Conexão", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Não foi possível conectar ao banco.\n\n" + e.getMessage(),
+                    "Testar Conexão", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_jMenuItem10ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -613,6 +646,7 @@ private void changeComponentColors(Component comp) {
     private javax.swing.JMenu jMenu4;
     private javax.swing.JMenu jMenu8;
     private javax.swing.JMenuItem jMenuItem1;
+    private javax.swing.JMenuItem jMenuItem10;
     private javax.swing.JMenuItem jMenuItem2;
     private javax.swing.JMenuItem jMenuItem3;
     private javax.swing.JMenuItem jMenuItem4;

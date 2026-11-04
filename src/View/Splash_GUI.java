@@ -77,6 +77,7 @@ public class Splash_GUI extends javax.swing.JFrame {
         jLabel2 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setUndecorated(true);
         getContentPane().setLayout(new javax.swing.BoxLayout(getContentPane(), javax.swing.BoxLayout.LINE_AXIS));
 
         jPanel1.setBackground(new java.awt.Color(235, 222, 203));
@@ -102,7 +103,7 @@ public class Splash_GUI extends javax.swing.JFrame {
 
         getContentPane().add(jPanel1);
 
-        setSize(new java.awt.Dimension(1299, 660));
+        setSize(new java.awt.Dimension(1299, 623));
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
